@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-RECIPIENT = "sunriseky21@gmail.com"
+RECIPIENT = "abhishek.a.tandon@capgemini.com
 SENDER = "Dallas Weather <onboarding@resend.dev>"  # Resend's built-in test sender
 CLAUDE_MODEL = "claude-sonnet-5-5"
 LAT, LON = 32.7767, -96.7970  # Dallas, TX
