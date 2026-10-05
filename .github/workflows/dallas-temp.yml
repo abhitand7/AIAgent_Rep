@@ -3,7 +3,7 @@ name: Dallas Temperature Email
 on:
   schedule:
     - cron: "0 */4 * * *"   # every 4 hours (UTC)
-  workflow_dispatch:         # lets you run it manually from the Actions tab
+  workflow_dispatch:         # manual run button
 
 jobs:
   send:
@@ -20,6 +20,5 @@ jobs:
 
       - name: Fetch Dallas temperature and email it
         env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: python dallas_temp_agent.py
