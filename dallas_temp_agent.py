@@ -2,21 +2,15 @@
 """
 Dallas Temperature Agent
 Fetches the current Dallas, TX temperature (Open-Meteo, no API key needed)
-and emails it to the recipient.
+and emails it to the recipient via Gmail SMTP.
 
-SETUP
-1. Turn on 2-Step Verification for the sending Gmail account, then create an
-   App Password: https://myaccount.google.com/apppasswords
-2. Set environment variables:
-     export GMAIL_USER="your_sending_address@gmail.com"
-     export GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"
-3. Test once:  python3 dallas_temp_agent.py
-4. Schedule every 4 hours (Linux/macOS) with `crontab -e`:
-     0 */4 * * * GMAIL_USER="you@gmail.com" GMAIL_APP_PASSWORD="xxxx" /usr/bin/python3 /path/to/dallas_temp_agent.py >> /tmp/dallas_temp.log 2>&1
-   Windows: use Task Scheduler with a trigger repeating every 4 hours.
+Required environment variables (GitHub Actions secrets):
+  GMAIL_USER          sending Gmail address
+  GMAIL_APP_PASSWORD  16-character Google App Password
 """
 import os
 import smtplib
+import ssl
 import sys
 from datetime import datetime
 from email.message import EmailMessage
@@ -43,8 +37,17 @@ def fetch_weather() -> dict:
 
 
 def send_email(subject: str, body: str) -> None:
-    user = os.environ["GMAIL_USER"]
-    password = os.environ["GMAIL_APP_PASSWORD"]
+    user = os.environ["GMAIL_USER"].strip()
+    # App passwords are shown with spaces; remove any whitespace/newlines.
+    password = "".join(os.environ["GMAIL_APP_PASSWORD"].split())
+
+    if "@" not in user:
+        raise ValueError("GMAIL_USER secret must be a full email address")
+    if len(password) != 16:
+        raise ValueError(
+            f"GMAIL_APP_PASSWORD should be 16 characters (got {len(password)}). "
+            "Create a Google App Password, not your normal password."
+        )
 
     msg = EmailMessage()
     msg["From"] = user
@@ -52,9 +55,31 @@ def send_email(subject: str, body: str) -> None:
     msg["Subject"] = subject
     msg.set_content(body)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as smtp:
-        smtp.login(user, password)
-        smtp.send_message(msg)
+    ctx = ssl.create_default_context()
+    errors = []
+
+    # Attempt 1: port 587 with STARTTLS
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
+            smtp.ehlo()
+            smtp.starttls(context=ctx)
+            smtp.ehlo()
+            smtp.login(user, password)
+            smtp.send_message(msg)
+        return
+    except Exception as exc:
+        errors.append(f"587/STARTTLS: {type(exc).__name__}: {exc}")
+
+    # Attempt 2: port 465 with SSL
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx, timeout=30) as smtp:
+            smtp.login(user, password)
+            smtp.send_message(msg)
+        return
+    except Exception as exc:
+        errors.append(f"465/SSL: {type(exc).__name__}: {exc}")
+
+    raise RuntimeError("Could not send email. " + " | ".join(errors))
 
 
 def main() -> int:
@@ -76,7 +101,6 @@ def main() -> int:
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())
