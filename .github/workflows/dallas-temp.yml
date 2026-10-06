@@ -2,7 +2,7 @@ name: Dallas Temperature Email
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 4 hours (UTC)
+    - cron: "0 */4 * * *"   # every 4 hours (UTC)
   workflow_dispatch:         # manual run button
 
 jobs:
@@ -18,7 +18,8 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Fetch Dallas temperature and email it
+      - name: Fetch Dallas weather, ask Claude for outlook, email it
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python dallas_temp_agent.py
