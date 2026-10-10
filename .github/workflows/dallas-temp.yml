@@ -2,7 +2,7 @@ name: Dallas Temperature Email
 
 on:
   schedule:
-    - cron: "0 */4 * * *"   # every 4 hours (UTC)
+    - cron: "0 0 * * *"   # every 4 hours (UTC)
   workflow_dispatch:         # manual run button
 
 jobs:
